@@ -25,7 +25,7 @@ k8s-monitor 是一个简单的命令行工具，用于实时监控 Kubernetes �
 
 ```bash
 git clone https://github.com/stphenzhang0713/k8s-monitor.git
-cd kubernetes-pod-monitor
+cd k8s-monitor
 ```
 
 然后，编译项目：
