@@ -29,13 +29,13 @@ go install github.com/stephenzhang0713/k8s-monitor@latest
 运行下面的命令来监控一个 Pod：
 
 ```bash
-./k8s-monitor --p POD_NAME --n NAMESPACE
+./k8s-monitor -p POD_NAME -n NAMESPACE
 ```
 
 
 参数说明：
 
 ```bash
---p: 要监控的 Pod 名称。
---n: Pod 所在的命名空间。如果未指定，默认为 default。
+-p: 要监控的 Pod 名称。
+-n: Pod 所在的命名空间。如果未指定，默认为 default。
 ```
