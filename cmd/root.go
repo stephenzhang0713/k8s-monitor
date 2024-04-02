@@ -1,4 +1,3 @@
-// Package cmd
 /*
 Copyright © 2024 Stephen Zhang stephenzhang0713@outlook.com
 
@@ -22,10 +21,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
@@ -34,7 +34,7 @@ import (
 var podName string
 var namespace string
 
-func initKubernetesClient() (*kubernetes.Clientset, *metricsv.Clientset, error) {
+func initKubernetesClient() (*metricsv.Clientset, error) {
 	kubeconfig := os.Getenv("KUBECONFIG")
 	if kubeconfig == "" {
 		if home := homedir.HomeDir(); home != "" {
@@ -44,41 +44,49 @@ func initKubernetesClient() (*kubernetes.Clientset, *metricsv.Clientset, error) 
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	metricsClient, err := metricsv.NewForConfig(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return clientset, metricsClient, nil
+	return metricsClient, nil
 }
 
 func monitorPods(ctx context.Context, podName, namespace string) error {
-	_, metricsClient, err := initKubernetesClient()
+	metricsClient, err := initKubernetesClient()
 	if err != nil {
 		return fmt.Errorf("initializing Kubernetes client: %w", err)
 	}
 
-	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(ctx, podName, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("getting pod metrics: %w", err)
-	}
+	// 无限循环，每5秒刷新一次
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(5 * time.Second):
+			podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(ctx, podName, metav1.GetOptions{})
+			if err != nil {
+				slog.ErrorContext(ctx, "getting pod metrics: ", err)
+				continue // 如果发生错误，跳过当前迭代，继续下一个循环
+			}
 
-	slog.Info("Pod: ", podMetrics.Name)
-	for _, container := range podMetrics.Containers {
-		slog.Info("  Container: %s\n", container.Name)
-		slog.Info("    CPU Usage: %s\n", container.Usage.Cpu().String())
-		slog.Info("    Memory Usage: %s\n", container.Usage.Memory().String())
-	}
+			// 初始化总 CPU 和内存使用量
+			totalCpuUsage := resource.NewQuantity(0, resource.DecimalSI)
+			totalMemoryUsage := resource.NewQuantity(0, resource.DecimalSI)
 
-	return nil
+			for _, container := range podMetrics.Containers {
+				// 累加 CPU 和内存使用量
+				totalCpuUsage.Add(*container.Usage.Cpu())
+				totalMemoryUsage.Add(*container.Usage.Memory())
+			}
+
+			// 打印总 CPU 和内存使用量
+			slog.Info("Pod metrics", "Pod", podMetrics.Name, "Total CPU Usage", totalCpuUsage.String(), "Total Memory Usage", totalMemoryUsage.String())
+		}
+	}
 }
 
 // rootCmd represents the base command when called without any subcommands
