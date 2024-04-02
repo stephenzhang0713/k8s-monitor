@@ -18,6 +18,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"go.uber.org/zap"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -33,6 +34,9 @@ import (
 
 var podName string
 var namespace string
+
+// 初始化zap日志记录器
+var logger, _ = zap.NewProduction()
 
 func initKubernetesClient() (*metricsv.Clientset, error) {
 	kubeconfig := os.Getenv("KUBECONFIG")
@@ -58,6 +62,7 @@ func initKubernetesClient() (*metricsv.Clientset, error) {
 func monitorPods(ctx context.Context, podName, namespace string) error {
 	metricsClient, err := initKubernetesClient()
 	if err != nil {
+		logger.Error("initializing Kubernetes client", zap.Error(err))
 		return fmt.Errorf("initializing Kubernetes client: %w", err)
 	}
 
@@ -69,7 +74,7 @@ func monitorPods(ctx context.Context, podName, namespace string) error {
 		case <-time.After(5 * time.Second):
 			podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(ctx, podName, metav1.GetOptions{})
 			if err != nil {
-				slog.ErrorContext(ctx, "getting pod metrics: ", err)
+				logger.Error("getting pod metrics", zap.Error(err))
 				continue // 如果发生错误，跳过当前迭代，继续下一个循环
 			}
 
@@ -84,7 +89,12 @@ func monitorPods(ctx context.Context, podName, namespace string) error {
 			}
 
 			// 打印总 CPU 和内存使用量
-			slog.Info("Pod metrics", "Pod", podMetrics.Name, "Total CPU Usage", totalCpuUsage.String(), "Total Memory Usage", totalMemoryUsage.String())
+			// 使用zap打印总 CPU 和内存使用量
+			logger.Info("Pod metrics",
+				zap.String("Pod", podMetrics.Name),
+				zap.String("Total CPU Usage", totalCpuUsage.String()),
+				zap.String("Total Memory Usage", totalMemoryUsage.String()),
+			)
 		}
 	}
 }
