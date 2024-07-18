@@ -7,9 +7,9 @@ toolchain go1.22.2
 require (
 	github.com/spf13/cobra v1.8.1
 	go.uber.org/zap v1.27.0
-	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.2
-	k8s.io/metrics v0.30.2
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
+	k8s.io/metrics v0.30.3
 )
 
 require (
@@ -44,7 +44,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.30.2 // indirect
+	k8s.io/api v0.30.3 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240411171206-dc4e619f62f3 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
